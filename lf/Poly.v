@@ -6,7 +6,7 @@
 (* Suppress some annoying warnings from Coq: *)
 Set Warnings "-notation-overridden,-parsing".
 From LF Require Export Lists.
-
+From LF Require Export HomeAuto.
 (* ################################################################# *)
 (** * Polymorphism *)
 
@@ -403,33 +403,116 @@ Definition list123''' := [1; 2; 3].
 (** Here are a few simple exercises, just like ones in the [Lists]
     chapter, for practice with polymorphism.  Complete the proofs below. *)
 
+Hint Constructors list.
+
+Ltac inv1 H :=
+   (inversion H; fail)
+     || (inversion H; [idtac]; clear H; try subst).
+
 Theorem app_nil_r : forall (X:Type), forall l:list X,
   l ++ [] = l.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  induction l;
+  simpl;
+  try (
+    match goal with
+      | [ H : _ = _ |- _ ] => rewrite H
+    end
+  );
+  intuition.
+Qed.
+
+Hint Resolve app_nil_r.
 
 Theorem app_assoc : forall A (l m n:list A),
   l ++ m ++ n = (l ++ m) ++ n.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros; 
+  induction l;
+  simpl; 
+  try (
+    match goal with
+      | [ H : _ = _ |- _ ] => rewrite H
+    end
+  );
+  intuition.
+Qed.
 
 Lemma app_length : forall (X:Type) (l1 l2 : list X),
   length (l1 ++ l2) = length l1 + length l2.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros; 
+  induction l1;
+  simpl; 
+  try (
+    match goal with
+      | [ H : _ = _ |- _ ] => rewrite H
+    end
+  );
+  intuition.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, optional (more_poly_exercises)  *)
 (** Here are some slightly more interesting ones... *)
 
+Ltac notHyp P :=
+  match goal with
+    | [ _ : P |- _ ] => fail 1
+    | _ =>
+      match P with
+        | ?P1 /\ ?P2 => first [ notHyp P1 | notHyp P2 | fail 2 ]
+        | _ => idtac
+      end
+  end.
+
+Ltac extend pf :=
+  let t := type of pf in
+    notHyp t; generalize pf; intro.
+
+Ltac complete :=
+  repeat match goal with
+           | [ |- _ /\ _ ] => constructor
+           | [ H : _ /\ _ |- _ ] => destruct H
+           | [ H : ?P -> ?Q, H' : ?P |- _ ] => specialize (H H')
+           | [ |- forall x, _ ] => intro
+           | [ H : forall x: ?X, _, H': ?X |- _ ] => extend (H H')
+           | [ H : forall x, ?P x -> _, H' : ?P ?X |- _ ] => extend (H X H')
+         end.
+
 Theorem rev_app_distr: forall X (l1 l2 : list X),
   rev (l1 ++ l2) = rev l2 ++ rev l1.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  induction l1.
+  - intros. simpl. auto.
+  - intros. complete. simpl.
+    rewrite H. rewrite app_assoc. reflexivity.
+Qed.
+
+Hint Resolve rev_app_distr.
+
+Lemma app_single: forall X (x: X) (l: list X), [x] ++ l = x :: l.
+Proof.
+  simpl; reflexivity.
+Qed.
+
+Hint Resolve app_single.
+
+Lemma rev_single: forall X (x: X), rev([x]) = [x].
+Proof.
+  simpl; reflexivity.
+Qed.
+
+Hint Resolve rev_single.
 
 Theorem rev_involutive : forall X : Type, forall l : list X,
   rev (rev l) = l.
 Proof.
+  induction l.
+  - reflexivity.
+  - simpl in *.
+    info_auto 10.
+    rewrite rev_app_distr. rewrite rev_single. rewrite app_single.
   (* FILL IN HERE *) Admitted.
 (** [] *)
 
